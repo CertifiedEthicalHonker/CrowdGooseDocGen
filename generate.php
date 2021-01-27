@@ -1,8 +1,10 @@
 <?php
 
+include_once(__DIR__.'/../vendor/autoload.php');
+
 $GLOBALS['cwd'] = getcwd();
 $GLOBALS['time'] = strtotime('now');
-$GLOBALS['filetype'] = $_POST['filetype'];
+$GLOBALS['filetype'] = $_POST['filetype'] ?? "pdf";
 
 function filter_parameter($input) {
     return preg_replace('/\s+/', '', $input);
@@ -20,6 +22,14 @@ function shutdown() {
 register_shutdown_function('shutdown');
 
 if(isset($_POST['html']) && isset($_POST['filetype'])) {
+    // Sanitize input
+    $config = HTMLPurifier_Config::createDefault();
+    $config->set('Core.Encoding', 'UTF-8');
+    $config->set('HTML.Allowed', 'h1[align],table[width|border|cellpadding],th[colspan|rowspan],tr,td[colspan|rowspan],b,i,u');
+    $purifier = new HTMLPurifier($config);
+    $clean_html = $purifier->purify($_POST['html']);    
+
+    // Create report
     $req_dump = '<html>
     <head>
         <title>Sample Report</title>
@@ -27,7 +37,7 @@ if(isset($_POST['html']) && isset($_POST['filetype'])) {
         <META NAME="COPYRIGHT" CONTENT="CrowdGooseDocGen v1.0.0">
         <meta charset="utf-8">
     </head><body>';
-    $req_dump .= print_r($_POST['html'], TRUE);
+    $req_dump .= $clean_html;
     $req_dump .= "</body></html>";
     $fp = fopen('request-'.$time.'.html', 'w');
     fwrite($fp, $req_dump);
